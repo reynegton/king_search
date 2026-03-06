@@ -1,7 +1,7 @@
 name: king_search
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.0+2
 
 environment:
   sdk: ^3.10.9
@@ -48,5 +48,5 @@ msix_config:
   display_name: Kyng Search
   publisher_display_name: Reynegton Nunes
   identity_name: com.reynegton.kyngsearch
-  msix_version: 0.1.0.1
+  msix_version: 0.1.0.2
   logo_path: assets/icon/app_icon.png
