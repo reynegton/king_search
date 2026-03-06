@@ -17,15 +17,24 @@ class _SearchWorkerParams {
 
 class LocalSearchDatasource {
   Future<Stream<SearchUpdate>> searchInParallel(SearchParams params) async {
+    final controller = StreamController<SearchUpdate>();
     bool isCancelled = false;
-    late StreamController<SearchUpdate> controller;
 
-    controller = StreamController<SearchUpdate>(
-      onCancel: () {
-        isCancelled = true;
-      },
-    );
+    controller.onCancel = () {
+      isCancelled = true;
+    };
 
+    // Inicia o processo de busca de forma assíncrona sem bloquear o retorno do Stream
+    _processSearch(params, controller, () => isCancelled);
+
+    return controller.stream;
+  }
+
+  Future<void> _processSearch(
+    SearchParams params,
+    StreamController<SearchUpdate> controller,
+    bool Function() isCancelledCheck,
+  ) async {
     List<String> discoveredFiles = [];
     int totalDiscovered = 0;
 
@@ -36,13 +45,18 @@ class LocalSearchDatasource {
         .toSet();
 
     try {
+      if (isCancelledCheck()) {
+        if (!controller.isClosed) controller.close();
+        return;
+      }
+
       await for (final entity in dir.list(
         recursive: true,
         followLinks: false,
       )) {
-        if (isCancelled) {
-          controller.close();
-          return controller.stream;
+        if (isCancelledCheck()) {
+          if (!controller.isClosed) controller.close();
+          return;
         }
 
         if (entity is File) {
@@ -55,23 +69,29 @@ class LocalSearchDatasource {
           discoveredFiles.add(entity.path);
           totalDiscovered++;
           if (totalDiscovered % 100 == 0) {
-            controller.add(SearchDiscoveryProgress(totalDiscovered));
+            if (!controller.isClosed) {
+              controller.add(SearchDiscoveryProgress(totalDiscovered));
+            }
             // Cede controle ao event loop para que a UI possa ser atualizada
             await Future.delayed(Duration.zero);
           }
         }
       }
     } catch (e) {
-      controller.addError(e);
-      controller.close();
-      return controller.stream;
+      if (!controller.isClosed) {
+        controller.addError(e);
+        controller.close();
+      }
+      return;
     }
 
-    controller.add(SearchPreProcessDone(totalDiscovered));
+    if (!controller.isClosed) {
+      controller.add(SearchPreProcessDone(totalDiscovered));
+    }
 
     if (discoveredFiles.isEmpty) {
-      controller.close();
-      return controller.stream;
+      if (!controller.isClosed) controller.close();
+      return;
     }
 
     // Phase 2: Distribuir nos Isolates (Pool Controlado)
@@ -85,7 +105,7 @@ class LocalSearchDatasource {
     int currentBatchIndex = 0;
 
     void dispatchNextBatch() {
-      if (isCancelled || controller.isClosed) return;
+      if (isCancelledCheck() || controller.isClosed) return;
 
       if (currentBatchIndex >= discoveredFiles.length) {
         if (activeWorkers == 0 && !controller.isClosed) {
@@ -109,30 +129,35 @@ class LocalSearchDatasource {
         params,
       );
 
-      Isolate.spawn(_workerEntrypoint, workerParams).then((_) {
-        receivePort.listen(
-          (message) {
-            if (message is SearchResult) {
-              if (!controller.isClosed) {
-                controller.add(SearchResultMatch(message));
-              }
-            } else if (message is int) {
-              filesProcessedTotal += message;
-              if (!controller.isClosed) {
-                controller.add(SearchScanningProgress(filesProcessedTotal));
-              }
-            } else if (message == "DONE") {
-              receivePort.close();
-              activeWorkers--;
-              dispatchNextBatch(); // Lança o próximo quando liberar um
-            }
-          },
-          onError: (e) {
+      Isolate.spawn(_workerEntrypoint, workerParams)
+          .then((isolate) {
+            receivePort.listen(
+              (message) {
+                if (message is SearchResult) {
+                  if (!controller.isClosed) {
+                    controller.add(SearchResultMatch(message));
+                  }
+                } else if (message is int) {
+                  filesProcessedTotal += message;
+                  if (!controller.isClosed) {
+                    controller.add(SearchScanningProgress(filesProcessedTotal));
+                  }
+                } else if (message == "DONE") {
+                  receivePort.close();
+                  activeWorkers--;
+                  dispatchNextBatch();
+                }
+              },
+              onError: (e) {
+                activeWorkers--;
+                dispatchNextBatch();
+              },
+            );
+          })
+          .catchError((e) {
             activeWorkers--;
             dispatchNextBatch();
-          },
-        );
-      });
+          });
     }
 
     // Inicializa o Pool até o limite (processorCount)
@@ -142,11 +167,10 @@ class LocalSearchDatasource {
       }
     }
 
+    // Caso base onde nada foi iniciado
     if (activeWorkers == 0 && !controller.isClosed) {
       controller.close();
     }
-
-    return controller.stream;
   }
 
   static void _workerEntrypoint(_SearchWorkerParams params) {
