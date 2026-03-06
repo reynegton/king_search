@@ -14,7 +14,7 @@ class RequestSearchEvent extends SearchEvent {
   final String query;
   final bool isCaseSensitive;
   final bool isRegExp;
-  final bool isMultilineDfm;
+  final bool isMultiline;
   final String extensionsText;
 
   const RequestSearchEvent({
@@ -22,7 +22,7 @@ class RequestSearchEvent extends SearchEvent {
     required this.query,
     this.isCaseSensitive = false,
     this.isRegExp = false,
-    this.isMultilineDfm = false,
+    this.isMultiline = false,
     this.extensionsText = "",
   });
 
@@ -32,7 +32,7 @@ class RequestSearchEvent extends SearchEvent {
     query,
     isCaseSensitive,
     isRegExp,
-    isMultilineDfm,
+    isMultiline,
     extensionsText,
   ];
 }

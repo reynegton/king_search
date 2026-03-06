@@ -42,14 +42,20 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     );
 
     List<String> extList = [];
-    if (event.extensionsText.trim().isNotEmpty &&
-        event.extensionsText.trim() != '*') {
-      extList = event.extensionsText
+    final rawExtensions = event.extensionsText.trim();
+    if (rawExtensions.isNotEmpty && rawExtensions != '*') {
+      extList = rawExtensions
           .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
+          .map(
+            (e) => e.trim().replaceAll('*', ''),
+          ) // Remove asteriscos (ex: *.txt -> .txt)
+          .where(
+            (e) => e.isNotEmpty && e != '.',
+          ) // Remove itens vazios ou apenas ponto
+          .map(
+            (e) => e.startsWith('.') ? e : '.$e',
+          ) // Garante que comece com ponto
           .toList();
-      extList = extList.map((e) => e.startsWith('.') ? e : '.$e').toList();
     }
 
     final params = SearchParams(
@@ -57,7 +63,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       query: event.query,
       isCaseSensitive: event.isCaseSensitive,
       isRegExp: event.isRegExp,
-      isMultiline: event.isMultilineDfm,
+      isMultiline: event.isMultiline,
       extensions: extList,
     );
 

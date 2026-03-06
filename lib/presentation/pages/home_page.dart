@@ -22,7 +22,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _isCaseSensitive = false;
   bool _isRegExp = false;
-  bool _isMultilineDfm = true;
+  bool _isMultiline = true;
 
   @override
   void initState() {
@@ -80,93 +80,112 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             /// FILTROS E PESQUISA
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Row(
+            BlocBuilder<SearchBloc, SearchState>(
+              builder: (context, state) {
+                final isLoading = state is SearchLoadingState;
+
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _dirController,
-                            decoration: const InputDecoration(
-                              labelText: 'Diretório Raíz',
-                              border: OutlineInputBorder(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _dirController,
+                                enabled: !isLoading,
+                                decoration: const InputDecoration(
+                                  labelText: 'Diretório Raíz',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: _pickDirectory,
-                          icon: const Icon(Icons.folder),
-                          label: const Text('Procurar'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _queryController,
-                            decoration: const InputDecoration(
-                              labelText: 'Texto ou (RegExp) a buscar',
-                              border: OutlineInputBorder(),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: isLoading ? null : _pickDirectory,
+                              icon: const Icon(Icons.folder),
+                              label: const Text('Procurar'),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 1,
-                          child: TextField(
-                            controller: _extController,
-                            decoration: const InputDecoration(
-                              labelText:
-                                  'Extensões (* para todas) use virgual para separar várias',
-                              hintText: 'Ex: .txt, .dfm',
-                              border: OutlineInputBorder(),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: _queryController,
+                                enabled: !isLoading,
+                                decoration: const InputDecoration(
+                                  labelText: 'Texto ou (RegExp) a buscar',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: TextField(
+                                controller: _extController,
+                                enabled: !isLoading,
+                                decoration: const InputDecoration(
+                                  labelText:
+                                      'Extensões (* para todas) use virgual para separar várias',
+                                  hintText: 'Ex: .txt, .dart, .cs',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        CheckboxMenuButton(
-                          value: _isCaseSensitive,
-                          onChanged: (v) =>
-                              setState(() => _isCaseSensitive = v!),
-                          child: const Text('Case Sensitive (Aa)'),
-                        ),
-                        Tooltip(
-                          message: 'Não pode ser usado com Ignore Quebras',
-                          child: CheckboxMenuButton(
-                            value: _isRegExp,
-                            onChanged: _isMultilineDfm
-                                ? null
-                                : (v) => setState(() => _isRegExp = v!),
-                            child: const Text('Usar Expressão Regular (.*)'),
-                          ),
-                        ),
-                        Tooltip(
-                          message:
-                              'Busca a palavra mesmo se ela estiver com quebra de código (String Break)',
-                          child: CheckboxMenuButton(
-                            value: _isMultilineDfm,
-                            onChanged: _isRegExp
-                                ? null
-                                : (v) => setState(() => _isMultilineDfm = v!),
-                            child: const Text('Ignorar Quebras de String'),
-                          ),
-                        ),
-                        const Spacer(),
-                        BlocBuilder<SearchBloc, SearchState>(
-                          builder: (context, state) {
-                            if (state is SearchLoadingState) {
-                              return ElevatedButton.icon(
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            CheckboxMenuButton(
+                              value: _isCaseSensitive,
+                              onChanged: isLoading
+                                  ? null
+                                  : (v) =>
+                                        setState(() => _isCaseSensitive = v!),
+                              child: const Text('Case Sensitive (Aa)'),
+                            ),
+                            Tooltip(
+                              message: 'Não pode ser usado com Ignore Quebras',
+                              child: CheckboxMenuButton(
+                                value: _isRegExp,
+                                onChanged: isLoading
+                                    ? null
+                                    : (v) {
+                                        setState(() {
+                                          _isRegExp = v!;
+                                          if (_isRegExp) _isMultiline = false;
+                                        });
+                                      },
+                                child: const Text(
+                                  'Usar Expressão Regular (.*)',
+                                ),
+                              ),
+                            ),
+                            Tooltip(
+                              message:
+                                  'Busca a palavra mesmo se ela estiver com quebra de código (String Break)',
+                              child: CheckboxMenuButton(
+                                value: _isMultiline,
+                                onChanged: isLoading
+                                    ? null
+                                    : (v) {
+                                        setState(() {
+                                          _isMultiline = v!;
+                                          if (_isMultiline) _isRegExp = false;
+                                        });
+                                      },
+                                child: const Text('Ignorar Quebras de String'),
+                              ),
+                            ),
+                            const Spacer(),
+                            if (isLoading)
+                              ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Theme.of(
                                     context,
@@ -187,34 +206,34 @@ class _HomePageState extends State<HomePage> {
                                     color: Theme.of(context).colorScheme.error,
                                   ),
                                 ),
-                              );
-                            }
-                            return ElevatedButton.icon(
-                              onPressed: () {
-                                context.read<SearchBloc>().add(
-                                  RequestSearchEvent(
-                                    directoryPath: _dirController.text,
-                                    query: _queryController.text,
-                                    isCaseSensitive: _isCaseSensitive,
-                                    isRegExp: _isRegExp,
-                                    isMultilineDfm: _isMultilineDfm,
-                                    extensionsText:
-                                        _extController.text.trim().isEmpty
-                                        ? "*"
-                                        : _extController.text,
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.search),
-                              label: const Text('Pesquisar em Todos'),
-                            );
-                          },
+                              )
+                            else
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  context.read<SearchBloc>().add(
+                                    RequestSearchEvent(
+                                      directoryPath: _dirController.text,
+                                      query: _queryController.text,
+                                      isCaseSensitive: _isCaseSensitive,
+                                      isRegExp: _isRegExp,
+                                      isMultiline: _isMultiline,
+                                      extensionsText:
+                                          _extController.text.trim().isEmpty
+                                          ? "*"
+                                          : _extController.text,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.search),
+                                label: const Text('Pesquisar em Todos'),
+                              ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
 
