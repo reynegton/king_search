@@ -235,7 +235,7 @@ class LocalSearchDatasource {
     if (p.isMultiline) {
       List<String> chars = p.query.split('');
       String breakPattern =
-          r"(?:'[ \t]*\+?[ \t]*(?:\#\d+|[\r\n])[ \t]*\+?[ \t]*'|)";
+          r"(?:'[ \t]*\+[ \t]*\r?\n[ \t]*'|'[ \t]*\+[ \t]*')?";
       String regexString = chars
           .map((c) => RegExp.escape(c))
           .join(breakPattern);
