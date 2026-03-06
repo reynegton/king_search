@@ -41,7 +41,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('King Search'), elevation: 2),
+      appBar: AppBar(title: const Text('Kyng Search'), elevation: 2),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,

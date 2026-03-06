@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeMode) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'King Search',
+            title: 'Kyng Search',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Colors.blueGrey,
